@@ -1,5 +1,7 @@
 package ma.sqli.brute.force;
 
+import ma.sqli.brute.force.entities.*;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -20,56 +22,81 @@ public class BruteForceApp {
     private Map<String,Integer> numberOfAttempt = new HashMap<>();
     private Map<String,Integer> numberOfAttemptAndroid = new HashMap<>();
 
+//////////////////////////////////////
 
+   // private LoginSession loginSession = new LoginSession();
 
+    private List<LoginSession> loginSessions = new ArrayList<>();
+    private UserList blackList = new UserList(ListType.BlackList);
+    private UserList whiteList = new UserList(ListType.WhiteList);
+    LoginSession loginSession;
+    Device device;
+    Device android;
     public String login(String username, String password) {
-        if(blacklist.contains(username)) message = "Your account is blacklisted, contact the CRC to resolve the problem.";
-        else if(password.length()<=1) {
-            login.add(username);
+        User user = new User(username, password);
+
+        if(!loginSessions.contains(new LoginSession(user, DeviceType.Laptop))) {
+            loginSession = new LoginSession(user, DeviceType.Laptop);
+        }
+
+        if(device == null) device = new Device(DeviceType.Laptop, new NormalSession(user));
+
+        if(blackList.containsUser(user)) message = "Your account is blacklisted, contact the CRC to resolve the problem.";
+        else if(user.checkPasswordStrength()) {
+            loginSessions.add(loginSession);
             message = "Your password is too weak, please update it by going to your my account.";
-            if(Collections.frequency(login, username) > 1) message += " - We detected that your account is logged in multiple devices";
-        } else if(usersList.get(username).equals(password)){
-            login.add(username);
+            if(loginSession.numberOfSessions(loginSessions) > 1) message += " - We detected that your account is logged in multiple devices";
+        } else if(whiteList.getUser(user).getPassword().equals(password)){
+            loginSessions.add(loginSession);
             message = "Welcome sqli!";
-            if(username.equals("admin")) {
+            if(user.getUsername().equals("admin")) {
                 message = "Welcome admin!";
             }
-            numberOfAttempt.put(username,0);
-        }else if(!usersList.get(username).equals("password")) {
-            if(numberOfAttempt.get(username)==null) numberOfAttempt.put(username, 0);
-            numberOfAttempt.put(username, numberOfAttempt.get(username) + 1);
+            loginSession.getLoginSession(loginSessions).getDevice().getAttempts().setNbOfAttempts(0);
+        }else if(!whiteList.getUser(user).getPassword().equals(user.getPassword())) {
+            device.getAttempts().incrementAttempts();
             message = "User or password are incorrect.";
-            if(numberOfAttempt.get(username) >= 3) message = "Multiple erroneous credentials, your account is locked.";
-            if(login.contains(username)) login.remove(username);
+           if(device.getAttempts().getNbOfAttempts() >= 3) message = "Multiple erroneous credentials, your account is locked.";
+            //if(loginSession.totalOfAttemptsInAllSessions(loginSessions) >= 2) message = "Multiple erroneous credentials, your account is locked.";
+            if(loginSessions.contains(user)) loginSessions.remove(user);
+
         }
-        if(Collections.frequency(login, username) > 1 && password.length() > 1) message = "We detected that your account is logged in multiple devices";
+        if(loginSession.numberOfSessions(loginSessions) > 1 && user.getPassword().length() > 1) message = "We detected that your account is logged in multiple devices";
 
         return message;
     }
 
     public void addUser(String username, String password) {
-        usersList.put(username, password);
+        whiteList.getUsers().add(new User(username, password));
     }
 
     public String loginWithAndroid(String username, String password) {
-        if(usersList.get(username).equals(password)){
-            login.add(username);
+        User user = new User(username, password);
+
+        if(!loginSessions.contains(new LoginSession(user, DeviceType.Android))) {
+            loginSession = new LoginSession(user, DeviceType.Android);
+        }
+
+        if(android == null) android = new Device(DeviceType.Android, new NormalSession(user));
+
+
+        if(whiteList.getUser(user).equals(user.getPassword())){
+            loginSessions.add(loginSession);
             message = "Welcome sqli!";
             if(username.equals("admin")) {
                 message = "Welcome admin!";
                 return message;
             }
-            numberOfAttemptAndroid.put(username,0);
-        }else if(!usersList.get(username).equals("password")) {
-            if(numberOfAttemptAndroid.get(username)==null) numberOfAttemptAndroid.put(username, 0);
-            numberOfAttemptAndroid.put(username, numberOfAttemptAndroid.get(username) + 1);
+            android.getAttempts().setNbOfAttempts(0);
+        }else if(!whiteList.getUser(user).getPassword().equals(password)) {
+            android.getAttempts().incrementAttempts();
             message = "User or password are incorrect.";
-            if(numberOfAttemptAndroid.get(username) >= 3) message = "Multiple erroneous credentials, your account is locked.";
+            if(android.getAttempts().getNbOfAttempts() >= 3) message = "Multiple erroneous credentials, your account is locked.";
         }
         return message;
     }
 
     public void blacklist(String sqli) {
-        blacklist.add(sqli);
+        blackList.getUsers().add(new User(sqli));
     }
 }
